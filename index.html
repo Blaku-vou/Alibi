@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALIBI</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --bg: #111008;
+  --surface: #1a1910;
+  --surface2: #222115;
+  --amber: #e8b84b;
+  --amber-dim: rgba(232,184,75,0.15);
+  --red: #c0392b;
+  --green: #27ae60;
+  --text: #e8e0cc;
+  --muted: #6b6450;
+  --border: #2e2b1e;
+  --scanline: rgba(0,0,0,0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier Prime', monospace;
+  overflow-x: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--scanline) 2px, var(--scanline) 4px);
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.4;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 30%, rgba(232,184,75,0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; }
+.screen.active { display: flex; }
+
+.logo {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(3.5rem, 14vw, 7rem);
+  letter-spacing: 0.15em;
+  color: var(--amber);
+  text-shadow: 0 0 40px rgba(232,184,75,0.3);
+  line-height: 1;
+  text-align: center;
+}
+
+.tagline {
+  font-size: 0.7rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px 20px;
+  width: 100%;
+  max-width: 480px;
+  margin-top: 24px;
+}
+
+.card-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-label::before {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 1px;
+  background: var(--amber);
+}
+
+.scenario-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  padding: 14px 16px;
+  border-radius: 2px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+.btn {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 13px 20px;
+  transition: opacity 0.15s, transform 0.1s;
+  width: 100%;
+  margin-top: 8px;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--amber); color: var(--bg); }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.btn-red { background: var(--red); color: #fff; }
+.btn-green { background: var(--green); color: #fff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { margin-top: 0; }
+
+textarea, input[type=text] {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.95rem;
+  padding: 12px 14px;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+}
+textarea:focus, input:focus { border-color: var(--amber); }
+
+.qr-wrap {
+  background: #fff;
+  padding: 16px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+.qr-wrap img, .qr-wrap canvas { display: block; max-width: 100%; height: auto; }
+
+.code-display {
+  font-family: 'Oswald', sans-serif;
+  font-size: 2.5rem;
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  text-align: center;
+  padding: 14px;
+  background: var(--surface2);
+  border-radius: 3px;
+  margin: 10px 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 2px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.status-badge.waiting { background: var(--amber-dim); color: var(--amber); }
+.status-badge.connected { background: rgba(39,174,96,0.15); color: var(--green); }
+.status-badge.error { background: rgba(192,57,43,0.15); color: var(--red); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.pulse { background: var(--amber); animation: pulse 1.5s infinite; }
+.status-dot.ok { background: var(--green); }
+.status-dot.err { background: var(--red); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.player-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--amber-dim);
+  border: 1px solid rgba(232,184,75,0.3);
+  padding: 6px 14px;
+  border-radius: 2px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  color: var(--amber);
+  margin-bottom: 14px;
+}
+
+.question-display {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  font-style: italic;
+}
+.question-display::before { content: '❝ '; color: var(--amber); font-style: normal; }
+
+.progress-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+.pdot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--muted); transition: all 0.3s; }
+.pdot.done-win { background: var(--green); border-color: var(--green); }
+.pdot.done-lose { background: var(--red); border-color: var(--red); }
+.pdot.current { border-color: var(--amber); background: var(--amber-dim); }
+.pdot.answered { background: var(--muted); border-color: var(--muted); }
+
+.compare-block { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.compare-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; }
+.compare-player { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.compare-answer { font-size: 0.95rem; color: var(--text); }
+
+.result-verdict { font-family: 'Oswald', sans-serif; font-size: 1.8rem; letter-spacing: 0.1em; text-align: center; padding: 10px 0; }
+.result-verdict.sync { color: var(--green); }
+.result-verdict.fail { color: var(--red); }
+
+.similarity-meter {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.1em;
+}
+.similarity-meter strong { color: var(--text); font-family: 'Oswald', sans-serif; }
+
+.score-big { font-family: 'Oswald', sans-serif; font-size: 4rem; color: var(--amber); text-align: center; line-height: 1; }
+.score-sub { font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 8px; }
+.end-msg { font-size: 0.95rem; text-align: center; line-height: 1.6; margin: 12px 0 20px; font-style: italic; }
+
+.scenario-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin-bottom: 14px; }
+.scenario-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; cursor: pointer; }
+.scenario-item:hover { border-color: var(--amber); }
+.scenario-item.selected { border-color: var(--amber); background: var(--amber-dim); }
+.scenario-item-title { font-family: 'Oswald', sans-serif; font-size: 0.9rem; letter-spacing: 0.1em; color: var(--amber); margin-bottom: 4px; }
+.scenario-item-preview { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.waiting-msg { text-align: center; padding: 30px 16px; color: var(--muted); font-style: italic; font-size: 0.9rem; }
+
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+.muted-text { font-size: 0.8rem; color: var(--muted); line-height: 1.6; margin: 8px 0; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.fade-up { animation: fadeUp 0.3s ease forwards; }
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<div class="screen active" id="s-home">
+  <div class="logo">ALIBI</div>
+  <p class="tagline">jeu en multi-appareils</p>
+  <div class="card fade-up">
+    <div class="card-label">Mode de jeu</div>
+    <div class="muted-text">
+      Un joueur crée la partie. L'autre rejoint en scannant le QR code.<br>
+      Concertation ensemble dans la vraie vie, puis interrogatoire chacun sur son écran.
+    </div>
+    <button class="btn btn-primary" onclick="createGame()">CRÉER UNE PARTIE</button>
+    <button class="btn btn-outline" onclick="goScreen('s-join')">REJOINDRE UNE PARTIE</button>
+  </div>
+</div>
+
+<!-- ============ HOST: WAITING FOR JOIN ============ -->
+<div class="screen" id="s-host">
+  <div class="logo" style="font-size:clamp(1.6rem,5vw,2.5rem);">EN ATTENTE</div>
+  <p class="tagline">l'autre joueur doit scanner</p>
+  <div class="card fade-up">
+    <div class="card-label">QR Code de la partie</div>
+    <div class="qr-wrap"><canvas id="qrCanvas"></canvas></div>
+    <div class="card-label">Ou code manuel</div>
+    <div class="code-display" id="hostCode">—</div>
+    <div class="muted-text" id="hostStatus">
+      <span class="status-badge waiting">
+        <span class="status-dot pulse"></span>
+        EN ATTENTE DU JOUEUR 2
+      </span>
+    </div>
+    <button class="btn btn-outline" onclick="cancelHost()">ANNULER</button>
+  </div>
+</div>
+
+<!-- ============ JOIN: ENTER CODE ============ -->
+<div class="screen" id="s-join">
+  <div class="logo" style="font-size:clamp(1.6rem,5vw,2.5rem);">REJOINDRE</div>
+  <div class="card fade-up">
+    <div class="card-label">Code de la partie</div>
+    <input type="text" id="joinCode" placeholder="ABCD12" maxlength="6" style="text-align:center;font-size:1.5rem;letter-spacing:0.3em;text-transform:uppercase;">
+    <div class="muted-text">Ou scannez le QR code avec l'appareil photo natif de votre téléphone.</div>
+    <button class="btn btn-primary" onclick="joinGame()">REJOINDRE</button>
+    <button class="btn btn-outline" onclick="goScreen('s-home')">← RETOUR</button>
+    <div id="joinError" style="color:var(--red);font-size:0.85rem;margin-top:10px;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ============ HOST: SCENARIO PICK ============ -->
+<div class="screen" id="s-scenarios">
+  <div class="logo" style="font-size:clamp(1.8rem,6vw,3rem);">CHOISIR</div>
+  <p class="tagline">vous êtes connectés</p>
+  <div class="card fade-up">
+    <div class="card-label">Scénario</div>
+    <div class="scenario-list" id="scenarioList"></div>
+    <button class="btn btn-primary" id="btnStartScenario" onclick="startScenario()" disabled>LANCER LE SCÉNARIO</button>
+  </div>
+</div>
+
+<!-- ============ JOIN: WAITING FOR HOST TO PICK ============ -->
+<div class="screen" id="s-wait-scenario">
+  <div class="logo" style="font-size:clamp(1.8rem,6vw,3rem);">EN ATTENTE</div>
+  <div class="card fade-up">
+    <div class="waiting-msg">
+      <span class="status-badge connected">
+        <span class="status-dot ok"></span>
+        CONNECTÉ
+      </span>
+      <div style="margin-top:20px;">L'autre joueur choisit le scénario…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONCERTATION ============ -->
+<div class="screen" id="s-concertation">
+  <div class="logo" style="font-size:clamp(1.8rem,6vw,3rem);">CONCERTATION</div>
+  <p class="tagline">discutez ensemble dans la vraie vie</p>
+  <div class="card fade-up">
+    <div class="card-label" id="scenarioTitleLabel">Scénario</div>
+    <div class="scenario-box" id="scenarioText">…</div>
+    <div class="muted-text">
+      💡 Préparez ensemble : <strong style="color:var(--text)">heure, lieux, personnes, détails physiques, émotions, imprévus</strong>. Plus vous êtes précis et alignés, mieux c'est.<br><br>
+      ⚠️ Quand vous êtes prêts, séparez-vous physiquement. La phase suivante se joue chacun sur son écran, sans communiquer.
+    </div>
+    <button class="btn btn-primary" id="btnReady" onclick="markReady()">JE SUIS PRÊT·E</button>
+    <div class="muted-text" id="readyStatus" style="text-align:center;margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- ============ INTERROGATION ============ -->
+<div class="screen" id="s-interrogation">
+  <div class="logo" style="font-size:clamp(1.6rem,5vw,2.5rem);">INTERROGATOIRE</div>
+  <p class="tagline">répondez seul·e, sans l'autre</p>
+  <div style="width:100%; max-width:480px;">
+    <div class="progress-dots" id="progressDots"></div>
+  </div>
+  <div class="card fade-up" id="interrogCard">
+    <div class="player-badge" id="playerBadge">👤 JOUEUR</div>
+    <div class="card-label" id="qNumLabel">Question 1</div>
+    <div class="question-display" id="questionDisplay">…</div>
+    <textarea id="answerInput" rows="3" placeholder="Répondez comme si vous y étiez vraiment…"></textarea>
+    <button class="btn btn-primary" onclick="submitAnswer()">RÉPONDRE →</button>
+    <div class="muted-text" id="answerStatus" style="text-align:center;margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- ============ COMPARE ============ -->
+<div class="screen" id="s-compare">
+  <div class="logo" style="font-size:clamp(1.8rem,6vw,3rem);">VERDICT</div>
+  <div class="card fade-up">
+    <div class="card-label" id="compareQLabel">Question</div>
+    <div class="question-display" id="compareQ">…</div>
+    <div class="compare-block">
+      <div class="compare-item">
+        <div class="compare-player">👤 Joueur 1</div>
+        <div class="compare-answer" id="cA1">—</div>
+      </div>
+      <div class="compare-item">
+        <div class="compare-player">👥 Joueur 2</div>
+        <div class="compare-answer" id="cA2">—</div>
+      </div>
+    </div>
+    <div class="similarity-meter" id="similarityMeter">Analyse… <strong>—</strong></div>
+    <div class="result-verdict" id="verdictText"></div>
+    <div class="divider"></div>
+    <div class="muted-text" style="text-align:center;">L'algorithme se trompe ? Corrigez :</div>
+    <div class="btn-row">
+      <button class="btn btn-red" onclick="overrideVerdict(false)">✗ FORCER NON</button>
+      <button class="btn btn-green" onclick="overrideVerdict(true)">✓ FORCER OUI</button>
+    </div>
+    <button class="btn btn-primary" onclick="nextCompare()" style="margin-top:14px;">CONFIRMER ET CONTINUER →</button>
+  </div>
+</div>
+
+<!-- ============ END ============ -->
+<div class="screen" id="s-end">
+  <div class="logo" style="font-size:clamp(1.8rem,6vw,3rem);">RÉSULTAT</div>
+  <div class="card fade-up">
+    <div class="score-sub">Score final</div>
+    <div class="score-big" id="finalScore">0/0</div>
+    <div class="end-msg" id="finalMsg">…</div>
+    <button class="btn btn-primary" onclick="location.reload()">REJOUER</button>
+  </div>
+</div>
+
+<!-- ============ DISCONNECTED ============ -->
+<div class="screen" id="s-disconnected">
+  <div class="logo" style="font-size:clamp(1.8rem,6vw,3rem); color:var(--red);">DÉCONNECTÉ</div>
+  <div class="card fade-up">
+    <div class="muted-text" style="text-align:center;">
+      La connexion avec l'autre joueur a été perdue.<br>
+      Vérifiez votre connexion internet et relancez une partie.
+    </div>
+    <button class="btn btn-primary" onclick="location.reload()">RECOMMENCER</button>
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+<script>
+// ============================================================
+// SCENARIOS DATA
+// ============================================================
+const SCENARIOS = [
+  {
+    title: "Le Festival",
+    context: `Vous étiez ensemble au festival "Nuits Électriques" le weekend du 12-13 juillet. Vous avez campé sur place, vu plusieurs artistes, et vous étiez encore là dimanche matin quand votre ami a dit qu'on lui avait volé son portefeuille. Votre alibi : vous étiez ensemble toute la soirée de samedi.`,
+    questions: [
+      "À quelle heure êtes-vous arrivés sur le site samedi ?",
+      "Où dormiez-vous exactement — tente, van, camping officiel ?",
+      "Quel artiste avez-vous préféré ce soir-là ?",
+      "Avez-vous mangé pendant la soirée ? Quoi et où ?",
+      "Décrivez la tenue de votre partenaire ce soir-là.",
+      "À quelle heure êtes-vous rentrés dormir ?",
+    ]
+  },
+  {
+    title: "Le Dîner Chez des Amis",
+    context: `Samedi soir, vous étiez tous les deux à un dîner chez Marc et Lucie, rue des Lilas. Vous y êtes restés de 19h à environ minuit. Il y avait d'autres invités. Vous êtes rentrés ensemble en Uber.`,
+    questions: [
+      "Qui d'autre était présent à ce dîner ?",
+      "Qu'est-ce qu'on a mangé ce soir-là ?",
+      "Décrivez le salon de Marc et Lucie.",
+      "De quoi avez-vous parlé pendant le dîner ?",
+      "À quelle heure avez-vous commandé l'Uber ?",
+      "Qu'est-ce que vous portiez ce soir-là ?",
+    ]
+  },
+  {
+    title: "Le Voyage à Lyon",
+    context: `Vous êtes partis ensemble à Lyon pour un long weekend, du vendredi soir au dimanche soir. Vous logiez dans un Airbnb du Vieux-Lyon. Vous étiez à Lyon le samedi après-midi quand votre appartement parisien a été cambriolé.`,
+    questions: [
+      "À quelle heure avez-vous pris le train vendredi ?",
+      "Décrivez l'Airbnb où vous logiez.",
+      "Qu'avez-vous fait samedi matin ?",
+      "Dans quel restaurant avez-vous mangé samedi midi ? Le plat ?",
+      "Nommez un endroit visité à Lyon.",
+      "Quelqu'un à Lyon peut confirmer votre présence ?",
+    ]
+  },
+  {
+    title: "La Nuit à la Maison",
+    context: `Vendredi soir, vous aviez prévu de sortir mais finalement vous êtes restés chez vous tous les deux. Films, jeux vidéo, livraison. Vous n'avez pas mis un pied dehors. Un bruit de bagarre a été signalé dans votre rue vers 23h.`,
+    questions: [
+      "Qu'est-ce que vous avez regardé ou fait ce soir-là ?",
+      "Vous avez commandé quoi à manger, et à quelle heure ?",
+      "Sur quelle application avez-vous commandé ?",
+      "Avez-vous entendu quelque chose d'inhabituel dans la rue ?",
+      "À quelle heure êtes-vous allés dormir ?",
+      "Décrivez la pièce où vous étiez.",
+    ]
+  },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let peer = null;
+let conn = null;
+let isHost = false;
+let myPlayerNum = null; // 1 or 2
+let gameCode = null;
+
+// Game state
+let selectedScenario = null;
+let currentScenario = null;
+let currentQIndex = 0;
+let myAnswers = []; // array of strings
+let otherAnswers = []; // received from peer
+let myReady = false;
+let otherReady = false;
+let compareIndex = 0;
+let score = 0;
+let currentVerdict = null; // true/false for the current comparison
+let manualOverride = null;
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ============================================================
+// PEER CONNECTION
+// ============================================================
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function createGame() {
+  isHost = true;
+  myPlayerNum = 1;
+  gameCode = generateCode();
+  const peerId = 'alibi-' + gameCode;
+
+  peer = new Peer(peerId, { debug: 1 });
+
+  peer.on('open', () => {
+    document.getElementById('hostCode').textContent = gameCode;
+    const url = location.origin + location.pathname + '?join=' + gameCode;
+    QRCode.toCanvas(document.getElementById('qrCanvas'), url, { width: 220, margin: 1, color: { dark: '#111008', light: '#ffffff' } });
+    goScreen('s-host');
+  });
+
+  peer.on('connection', (c) => {
+    conn = c;
+    setupConnectionHandlers();
+    conn.on('open', () => {
+      // Connected — go to scenario picker
+      buildScenarioList();
+      goScreen('s-scenarios');
+    });
+  });
+
+  peer.on('error', (err) => {
+    console.error('Peer error:', err);
+    if (err.type === 'unavailable-id') {
+      alert('Code déjà utilisé. Rechargez et réessayez.');
+    }
+  });
+
+  peer.on('disconnected', () => {
+    console.warn('Peer disconnected from signaling');
+  });
+}
+
+function cancelHost() {
+  if (peer) { peer.destroy(); peer = null; }
+  goScreen('s-home');
+}
+
+function joinGame() {
+  const codeRaw = document.getElementById('joinCode').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(codeRaw)) {
+    document.getElementById('joinError').textContent = 'Code invalide (6 caractères)';
+    return;
+  }
+  document.getElementById('joinError').textContent = '';
+  isHost = false;
+  myPlayerNum = 2;
+  gameCode = codeRaw;
+
+  const myId = 'alibi-join-' + Math.random().toString(36).substring(2, 10);
+  peer = new Peer(myId, { debug: 1 });
+
+  peer.on('open', () => {
+    conn = peer.connect('alibi-' + gameCode, { reliable: true });
+    setupConnectionHandlers();
+    conn.on('open', () => {
+      goScreen('s-wait-scenario');
+    });
+  });
+
+  peer.on('error', (err) => {
+    console.error('Peer error:', err);
+    if (err.type === 'peer-unavailable') {
+      document.getElementById('joinError').textContent = 'Aucune partie avec ce code. Vérifiez et réessayez.';
+    } else {
+      document.getElementById('joinError').textContent = 'Erreur de connexion : ' + err.type;
+    }
+  });
+}
+
+function setupConnectionHandlers() {
+  conn.on('data', handleMessage);
+  conn.on('close', () => {
+    console.warn('Connection closed');
+    goScreen('s-disconnected');
+  });
+  conn.on('error', (err) => {
+    console.error('Conn error:', err);
+  });
+}
+
+function send(msg) {
+  if (conn && conn.open) {
+    conn.send(msg);
+  } else {
+    console.warn('Cannot send, conn not open', msg);
+  }
+}
+
+function handleMessage(msg) {
+  console.log('Received:', msg);
+  switch (msg.type) {
+    case 'scenario':
+      // host sends scenario choice to join
+      currentScenario = SCENARIOS[msg.scenarioIndex];
+      myAnswers = new Array(currentScenario.questions.length).fill(null);
+      otherAnswers = new Array(currentScenario.questions.length).fill(null);
+      showConcertation();
+      break;
+    case 'ready':
+      otherReady = true;
+      checkBothReady();
+      break;
+    case 'answer':
+      otherAnswers[msg.qIndex] = msg.text;
+      // If we're already in compare for that question, refresh
+      if (document.getElementById('s-compare').classList.contains('active') && compareIndex === msg.qIndex) {
+        showCompareScreen();
+      }
+      // If we're waiting for the other answer for the current question shown
+      checkCanShowCompare();
+      break;
+    case 'verdict':
+      // The other player confirmed verdict — sync
+      if (msg.qIndex === compareIndex) {
+        applyVerdict(msg.success, false);
+      }
+      break;
+  }
+}
+
+// ============================================================
+// SCENARIO PICK (host only)
+// ============================================================
+function buildScenarioList() {
+  const list = document.getElementById('scenarioList');
+  list.innerHTML = '';
+  SCENARIOS.forEach((sc, i) => {
+    const div = document.createElement('div');
+    div.className = 'scenario-item';
+    div.innerHTML = `<div class="scenario-item-title">${sc.title}</div><div class="scenario-item-preview">${sc.context.substring(0, 70)}…</div>`;
+    div.onclick = () => {
+      document.querySelectorAll('.scenario-item').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+      selectedScenario = i;
+      document.getElementById('btnStartScenario').disabled = false;
+    };
+    list.appendChild(div);
+  });
+}
+
+function startScenario() {
+  if (selectedScenario === null) return;
+  currentScenario = SCENARIOS[selectedScenario];
+  myAnswers = new Array(currentScenario.questions.length).fill(null);
+  otherAnswers = new Array(currentScenario.questions.length).fill(null);
+  send({ type: 'scenario', scenarioIndex: selectedScenario });
+  showConcertation();
+}
+
+// ============================================================
+// CONCERTATION
+// ============================================================
+function showConcertation() {
+  document.getElementById('scenarioTitleLabel').textContent = currentScenario.title;
+  document.getElementById('scenarioText').textContent = currentScenario.context;
+  document.getElementById('btnReady').disabled = false;
+  document.getElementById('readyStatus').textContent = '';
+  myReady = false;
+  otherReady = false;
+  goScreen('s-concertation');
+}
+
+function markReady() {
+  myReady = true;
+  document.getElementById('btnReady').disabled = true;
+  document.getElementById('readyStatus').innerHTML = '<span class="status-badge waiting"><span class="status-dot pulse"></span>EN ATTENTE DE L\'AUTRE</span>';
+  send({ type: 'ready' });
+  checkBothReady();
+}
+
+function checkBothReady() {
+  if (myReady && otherReady) {
+    startInterrogation();
+  } else if (otherReady && !myReady) {
+    document.getElementById('readyStatus').innerHTML = '<span class="status-badge connected"><span class="status-dot ok"></span>L\'AUTRE EST PRÊT·E — À VOUS</span>';
+  }
+}
+
+// ============================================================
+// INTERROGATION
+// ============================================================
+function startInterrogation() {
+  currentQIndex = 0;
+  score = 0;
+  compareIndex = 0;
+
+  // Build dots
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  currentScenario.questions.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'pdot' + (i === 0 ? ' current' : '');
+    d.id = `pdot-${i}`;
+    dots.appendChild(d);
+  });
+
+  document.getElementById('playerBadge').textContent = `👤 JOUEUR ${myPlayerNum}`;
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const q = currentScenario.questions[currentQIndex];
+  document.getElementById('qNumLabel').textContent = `Question ${currentQIndex + 1} / ${currentScenario.questions.length}`;
+  document.getElementById('questionDisplay').textContent = q;
+  document.getElementById('answerInput').value = '';
+  document.getElementById('answerInput').disabled = false;
+  document.querySelector('#s-interrogation .btn-primary').disabled = false;
+  document.getElementById('answerStatus').textContent = '';
+
+  // Reset interrog card animation
+  const card = document.getElementById('interrogCard');
+  card.classList.remove('fade-up');
+  void card.offsetWidth;
+  card.classList.add('fade-up');
+
+  goScreen('s-interrogation');
+  setTimeout(() => document.getElementById('answerInput').focus(), 200);
+}
+
+function submitAnswer() {
+  const val = document.getElementById('answerInput').value.trim();
+  if (!val) { document.getElementById('answerInput').focus(); return; }
+
+  myAnswers[currentQIndex] = val;
+  send({ type: 'answer', qIndex: currentQIndex, text: val });
+
+  // Mark dot as answered
+  const dot = document.getElementById(`pdot-${currentQIndex}`);
+  if (dot) { dot.classList.remove('current'); dot.classList.add('answered'); }
+
+  // Disable input
+  document.getElementById('answerInput').disabled = true;
+  document.querySelector('#s-interrogation .btn-primary').disabled = true;
+  document.getElementById('answerStatus').innerHTML = '<span class="status-badge waiting"><span class="status-dot pulse"></span>EN ATTENTE DE L\'AUTRE</span>';
+
+  checkCanAdvanceQuestion();
+}
+
+function checkCanAdvanceQuestion() {
+  // Advance to next question once BOTH have answered current
+  if (myAnswers[currentQIndex] != null && otherAnswers[currentQIndex] != null) {
+    currentQIndex++;
+    if (currentQIndex >= currentScenario.questions.length) {
+      // All done — start comparison
+      compareIndex = 0;
+      showCompareScreen();
+    } else {
+      const nextDot = document.getElementById(`pdot-${currentQIndex}`);
+      if (nextDot) nextDot.classList.add('current');
+      loadQuestion();
+    }
+  }
+}
+
+// called when receiving an answer message - to check if we can move on
+function checkCanShowCompare() {
+  checkCanAdvanceQuestion();
+}
+
+// ============================================================
+// SIMILARITY ALGORITHM
+// ============================================================
+function normalize(s) {
+  return s
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[^\w\s:]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractNumbers(s) {
+  // extract numbers, hours like "20h30", "20:30", "20 heures"
+  const nums = [];
+  const hourRegex = /(\d{1,2})\s*[h:]\s*(\d{2})?/g;
+  let m;
+  while ((m = hourRegex.exec(s)) !== null) {
+    const h = parseInt(m[1]);
+    const min = m[2] ? parseInt(m[2]) : 0;
+    nums.push(h * 60 + min);
+  }
+  // standalone numbers like "20 heures", "vers 20"
+  const stripped = s.replace(hourRegex, '');
+  const numRegex = /\b(\d+)\b/g;
+  while ((m = numRegex.exec(stripped)) !== null) {
+    const n = parseInt(m[1]);
+    if (n < 100) nums.push(n); // small numbers likely meaningful
+  }
+  return nums;
+}
+
+const STOPWORDS = new Set(['le','la','les','un','une','des','de','du','et','a','à','au','aux','est','on','vers','c','etait','c\'etait','que','qui','dans','sur','en','etre','je','tu','il','elle','nous','vous','ils','elles','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','votre','leur','leurs','ce','cette','ces','y','d','l','s','n','pas','plus','tres','tout','tous','toute','toutes','avec','pour','par','si','ou','aussi','quand','comme','meme','etre','ete','avoir','eu']);
+
+function getKeywords(s) {
+  return normalize(s).split(' ').filter(w => w.length > 1 && !STOPWORDS.has(w));
+}
+
+function computeSimilarity(a, b) {
+  if (!a || !b) return 0;
+
+  const wordsA = new Set(getKeywords(a));
+  const wordsB = new Set(getKeywords(b));
+
+  if (wordsA.size === 0 && wordsB.size === 0) return 1;
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+
+  // Jaccard on keywords
+  const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+  const union = new Set([...wordsA, ...wordsB]);
+  const jaccard = intersection.size / union.size;
+
+  // Number matching bonus
+  const numsA = extractNumbers(a);
+  const numsB = extractNumbers(b);
+  let numScore = 0;
+  if (numsA.length > 0 && numsB.length > 0) {
+    let matches = 0;
+    numsA.forEach(n => {
+      // tolerance of 30 min for hours, or exact for small numbers
+      if (numsB.some(m => Math.abs(n - m) <= 30)) matches++;
+    });
+    numScore = matches / Math.max(numsA.length, numsB.length);
+  }
+
+  // Weighted combo — keywords matter more
+  return jaccard * 0.7 + numScore * 0.3;
+}
+
+const SIMILARITY_THRESHOLD = 0.35;
+
+// ============================================================
+// COMPARISON
+// ============================================================
+function showCompareScreen() {
+  if (compareIndex >= currentScenario.questions.length) {
+    showEnd();
+    return;
+  }
+  const q = currentScenario.questions[compareIndex];
+  const a1 = myPlayerNum === 1 ? myAnswers[compareIndex] : otherAnswers[compareIndex];
+  const a2 = myPlayerNum === 2 ? myAnswers[compareIndex] : otherAnswers[compareIndex];
+
+  document.getElementById('compareQLabel').textContent = `Question ${compareIndex + 1} / ${currentScenario.questions.length}`;
+  document.getElementById('compareQ').textContent = q;
+  document.getElementById('cA1').textContent = a1 || '(pas de réponse)';
+  document.getElementById('cA2').textContent = a2 || '(pas de réponse)';
+
+  const sim = computeSimilarity(a1, a2);
+  const simPct = Math.round(sim * 100);
+  const auto = sim >= SIMILARITY_THRESHOLD;
+  currentVerdict = auto;
+  manualOverride = null;
+
+  document.getElementById('similarityMeter').innerHTML =
+    `Similarité analysée : <strong>${simPct}%</strong> — Seuil : ${Math.round(SIMILARITY_THRESHOLD*100)}%`;
+
+  updateVerdictDisplay(auto);
+  goScreen('s-compare');
+}
+
+function updateVerdictDisplay(success) {
+  const el = document.getElementById('verdictText');
+  if (success) {
+    el.textContent = '✓ ALIBI COHÉRENT';
+    el.className = 'result-verdict sync';
+  } else {
+    el.textContent = '✗ INCOHÉRENCE';
+    el.className = 'result-verdict fail';
+  }
+}
+
+function overrideVerdict(success) {
+  manualOverride = success;
+  currentVerdict = success;
+  updateVerdictDisplay(success);
+}
+
+function nextCompare() {
+  applyVerdict(currentVerdict, true);
+}
+
+function applyVerdict(success, propagate) {
+  const dot = document.getElementById(`pdot-${compareIndex}`);
+  if (success) {
+    score++;
+    if (dot) { dot.classList.remove('answered','current'); dot.classList.add('done-win'); }
+  } else {
+    if (dot) { dot.classList.remove('answered','current'); dot.classList.add('done-lose'); }
+  }
+
+  if (propagate) {
+    send({ type: 'verdict', qIndex: compareIndex, success: success });
+  }
+
+  compareIndex++;
+  setTimeout(showCompareScreen, 600);
+}
+
+// ============================================================
+// END
+// ============================================================
+function showEnd() {
+  const total = currentScenario.questions.length;
+  document.getElementById('finalScore').textContent = `${score}/${total}`;
+  const pct = score / total;
+  let msg;
+  if (pct === 1) msg = "Alibi parfait. Synchronisés ou pros du mensonge.";
+  else if (pct >= 0.8) msg = "Alibi solide. Quelques détails à aligner.";
+  else if (pct >= 0.6) msg = "Dossier fragile. Un bon enquêteur aurait trouvé les failles.";
+  else if (pct >= 0.4) msg = "Vous vous contredisez trop. L'histoire ne tient pas.";
+  else msg = "Vous allez en prison. Séparément.";
+  document.getElementById('finalMsg').textContent = msg;
+  goScreen('s-end');
+}
+
+// ============================================================
+// AUTO-JOIN FROM QR CODE
+// ============================================================
+window.addEventListener('load', () => {
+  const params = new URLSearchParams(location.search);
+  const joinCode = params.get('join');
+  if (joinCode) {
+    document.getElementById('joinCode').value = joinCode.toUpperCase();
+    goScreen('s-join');
+    // Auto-attempt join
+    setTimeout(() => joinGame(), 400);
+  }
+});
+
+// Enter to submit on inputs
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.screen.active');
+    if (!active) return;
+    if (active.id === 's-join' && document.activeElement.id === 'joinCode') joinGame();
+    if (active.id === 's-interrogation' && e.ctrlKey) submitAnswer();
+  }
+});
+</script>
+</body>
+</html>
